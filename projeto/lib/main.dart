@@ -24,6 +24,26 @@ class WaterConsumptionEntry {
       };
 }
 
+class ScheduledTime {
+  final TimeOfDay time;
+  bool isEnabled;
+
+  ScheduledTime(this.time, this.isEnabled);
+
+  Map<String, dynamic> toJson() => {
+        'hour': time.hour,
+        'minute': time.minute,
+        'isEnabled': isEnabled,
+      };
+
+  factory ScheduledTime.fromJson(Map<String, dynamic> json) {
+    return ScheduledTime(
+      TimeOfDay(hour: json['hour'], minute: json['minute']),
+      json['isEnabled'],
+    );
+  }
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
@@ -33,6 +53,9 @@ class MyApp extends StatelessWidget {
       title: 'Lembrete de Água',
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.blue,
+        ),
       ),
       home: MyHomePage(),
     );
@@ -45,16 +68,17 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _interval = 7200; 
-  double _amountOfWater = 250.0; // quant de agua (ml)
+  double _amountOfWater = 250.0;
   bool _isDrinking = false;
-  TimeOfDay _selectedTime = TimeOfDay.now();
-
-  Timer? _timer;
   late AssetsAudioPlayer _audioPlayer;
   String _soundPath = 'assets/notificacao.mp3';
-
   List<WaterConsumptionEntry> waterConsumptionHistory = [];
+  List<ScheduledTime> scheduledTimes = [
+    ScheduledTime(TimeOfDay(hour: 8, minute: 0), true),
+    ScheduledTime(TimeOfDay(hour: 12, minute: 0), true),
+    ScheduledTime(TimeOfDay(hour: 16, minute: 0), true),
+    ScheduledTime(TimeOfDay(hour: 20, minute: 0), true),
+  ];
 
   @override
   void initState() {
@@ -93,25 +117,23 @@ class _MyHomePageState extends State<MyHomePage> {
               'Quantidade de Água: ${_amountOfWater.toStringAsFixed(0)} ml',
               style: TextStyle(fontSize: 16),
             ),
-            Slider(
-              value: _amountOfWater,
-              min: 100.0,
-              max: 1000.0,
-              onChanged: (value) {
-                setState(() {
-                  _amountOfWater = value;
-                });
-              },
+            Container(
+              width: 300,
+              child: Slider(
+                value: _amountOfWater,
+                min: 100.0,
+                max: 1000.0,
+                onChanged: (value) {
+                  setState(() {
+                    _amountOfWater = value;
+                  });
+                },
+              ),
             ),
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: _toggleReminder,
               child: Text(_isDrinking ? 'Parar lembrete' : 'Começar Lembrete'),
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _selectTime,
-              child: Text('Selecionar Horário: ${_selectedTime.format(context)}'),
             ),
             SizedBox(height: 20),
             ElevatedButton(
@@ -125,6 +147,13 @@ class _MyHomePageState extends State<MyHomePage> {
               },
               child: Text('Histórico'),
             ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                _editSchedule(context);
+              },
+              child: Text('Cronograma'),
+            ),
           ],
         ),
       ),
@@ -137,7 +166,6 @@ class _MyHomePageState extends State<MyHomePage> {
       waterConsumptionHistory.add(entry);
     });
 
-    // Salvar no shared_preferences
     final prefs = await SharedPreferences.getInstance();
     final historyJson = waterConsumptionHistory.map((e) => jsonEncode(e)).toList();
     await prefs.setStringList('waterConsumptionHistory', historyJson);
@@ -145,13 +173,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _toggleReminder() {
     if (_isDrinking) {
-      // Parar lembrete
       setState(() {
         _isDrinking = false;
       });
-      _timer?.cancel(); // Verifica se _timer não é nulo antes de chamar cancel()
+      _timer?.cancel();
     } else {
-      // Iniciar lembrete
       setState(() {
         _isDrinking = true;
       });
@@ -162,17 +188,25 @@ class _MyHomePageState extends State<MyHomePage> {
   void _startReminder() {
     _timer = Timer.periodic(Duration(seconds: 1), (timer) {
       DateTime now = DateTime.now();
-      DateTime selectedDateTime =
-          DateTime(now.year, now.month, now.day, _selectedTime.hour, _selectedTime.minute);
 
-      if (now.isAfter(selectedDateTime)) {
-        _showReminder();
-        _playNotificationSound(); // Adiciona a reprodução do som
-        _recordWaterConsumption(_amountOfWater); // Registra o consumo de água
-        timer.cancel(); // Cancela o timer após exibir a mensagem
-        setState(() {
-          _isDrinking = false;
-        });
+      for (var scheduledTime in scheduledTimes) {
+        DateTime selectedDateTime = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          scheduledTime.time.hour,
+          scheduledTime.time.minute,
+        );
+
+        if (now.isAfter(selectedDateTime) && scheduledTime.isEnabled) {
+          _showReminder();
+          _playNotificationSound();
+          _recordWaterConsumption(_amountOfWater);
+          timer.cancel();
+          setState(() {
+            _isDrinking = false;
+          });
+        }
       }
     });
   }
@@ -202,24 +236,28 @@ class _MyHomePageState extends State<MyHomePage> {
     _audioPlayer.play();
   }
 
-  void _selectTime() async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime,
-    );
-
-    if (picked != null && picked != _selectedTime) {
-      setState(() {
-        _selectedTime = picked;
-      });
-    }
-  }
-
   @override
   void dispose() {
     _timer?.cancel();
-    _audioPlayer.dispose(); // Permite que o audio de notificação funcione
+    _audioPlayer.dispose();
     super.dispose();
+  }
+
+  Timer? _timer;
+
+  void _editSchedule(BuildContext context) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SchedulePage(scheduledTimes),
+      ),
+    );
+
+    if (result != null && result is List<ScheduledTime>) {
+      setState(() {
+        scheduledTimes = result;
+      });
+    }
   }
 }
 
@@ -231,8 +269,8 @@ class CustomAppBar extends StatelessWidget {
       color: Colors.blue,
       child: Row(
         children: [
-          Image.asset('assets/water_icon.png', width: 36, height: 36), // Ajustar o tamanho do icone
-          SizedBox(width: 16), // Para adicionar um espaço entre o titulo e o icone
+          Image.asset('assets/water_icon.png', width: 36, height: 36),
+          SizedBox(width: 16),
           Text('Lembrete de Água', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         ],
       ),
@@ -257,9 +295,129 @@ class HistoryPage extends StatelessWidget {
           final entry = waterConsumptionHistory[index];
           return ListTile(
             title: Text('Data: ${entry.dateTime.toString()}'),
-            subtitle: Text('Quantidade: ${entry.amount.toString()} ml'),
+            subtitle: Text('Quantidade: ${entry.amount.toStringAsFixed(0)} ml'),
           );
         },
+      ),
+    );
+  }
+}
+
+class SchedulePage extends StatefulWidget {
+  final List<ScheduledTime> scheduledTimes;
+
+  SchedulePage(this.scheduledTimes);
+
+  @override
+  _SchedulePageState createState() => _SchedulePageState();
+}
+
+class _SchedulePageState extends State<SchedulePage> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Cronograma'),
+      ),
+      body: ListView.builder(
+        itemCount: widget.scheduledTimes.length,
+        itemBuilder: (context, index) {
+          final scheduledTime = widget.scheduledTimes[index];
+          return ListTile(
+            title: Text(
+              'Horário: ${scheduledTime.time.format(context)}',
+              style: TextStyle(fontSize: 16),
+            ),
+            trailing: Switch(
+              value: scheduledTime.isEnabled,
+              onChanged: (value) {
+                setState(() {
+                  widget.scheduledTimes[index].isEnabled = value;
+                });
+              },
+            ),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AddSchedulePage(),
+            ),
+          );
+
+          if (result != null && result is ScheduledTime) {
+            setState(() {
+              widget.scheduledTimes.add(result);
+            });
+          }
+        },
+        child: Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+class AddSchedulePage extends StatefulWidget {
+  @override
+  _AddSchedulePageState createState() => _AddSchedulePageState();
+}
+
+class _AddSchedulePageState extends State<AddSchedulePage> {
+  late TimeOfDay _selectedTime;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTime = TimeOfDay.now();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Adicionar Horário'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start, // Ajuste aqui para 'start'
+          children: <Widget>[
+            SizedBox(height: 20),
+            Text(
+              'Selecione o Horário',
+              style: TextStyle(fontSize: 18),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () async {
+                final pickedTime = await showTimePicker(
+                  context: context,
+                  initialTime: _selectedTime,
+                );
+
+                if (pickedTime != null) {
+                  setState(() {
+                    _selectedTime = pickedTime;
+                  });
+                }
+              },
+              child: Text('Horário: ${_selectedTime.format(context)}'),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  ScheduledTime(_selectedTime, true),
+                );
+              },
+              child: Text('Adicionar'),
+            ),
+          ],
+        ),
       ),
     );
   }

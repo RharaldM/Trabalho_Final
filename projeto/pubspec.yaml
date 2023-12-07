@@ -32,6 +32,8 @@ dependencies:
     sdk: flutter
   flutter_local_notifications: ^16.2.0
   assets_audio_player: ^3.1.1
+  flutter_statusbarcolor_ns: ^0.5.0
+  timezone: ^0.9.2
 
 
   # The following adds the Cupertino Icons font to your application.
