@@ -5,47 +5,47 @@ import 'package:assets_audio_player/assets_audio_player.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(MinhaApp());
 }
 
-class WaterConsumptionEntry {
-  final DateTime dateTime;
-  final double amount;
+class EntradaConsumoAgua {
+  final DateTime dataHora;
+  final double quantidade;
 
-  WaterConsumptionEntry(this.dateTime, this.amount);
+  EntradaConsumoAgua(this.dataHora, this.quantidade);
 
-  WaterConsumptionEntry.fromJson(Map<String, dynamic> json)
-      : dateTime = DateTime.parse(json['dateTime']),
-        amount = json['amount'];
+  EntradaConsumoAgua.fromJson(Map<String, dynamic> json)
+      : dataHora = DateTime.parse(json['dataHora']),
+        quantidade = json['quantidade'];
 
   Map<String, dynamic> toJson() => {
-        'dateTime': dateTime.toIso8601String(),
-        'amount': amount,
+        'dataHora': dataHora.toIso8601String(),
+        'quantidade': quantidade,
       };
 }
 
-class ScheduledTime {
-  final TimeOfDay time;
-  bool isEnabled;
+class HorarioAgendado {
+  final TimeOfDay horario;
+  bool estaAtivo;
 
-  ScheduledTime(this.time, this.isEnabled);
+  HorarioAgendado(this.horario, this.estaAtivo);
 
   Map<String, dynamic> toJson() => {
-        'hour': time.hour,
-        'minute': time.minute,
-        'isEnabled': isEnabled,
+        'hora': horario.hour,
+        'minuto': horario.minute,
+        'estaAtivo': estaAtivo,
       };
 
-  factory ScheduledTime.fromJson(Map<String, dynamic> json) {
-    return ScheduledTime(
-      TimeOfDay(hour: json['hour'], minute: json['minute']),
-      json['isEnabled'],
+  factory HorarioAgendado.fromJson(Map<String, dynamic> json) {
+    return HorarioAgendado(
+      TimeOfDay(hour: json['hora'], minute: json['minuto']),
+      json['estaAtivo'],
     );
   }
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+class MinhaApp extends StatelessWidget {
+  const MinhaApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -57,43 +57,43 @@ class MyApp extends StatelessWidget {
           backgroundColor: Colors.blue,
         ),
       ),
-      home: MyHomePage(),
+      home: MinhaPaginaInicial(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
+class MinhaPaginaInicial extends StatefulWidget {
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _MinhaPaginaInicialEstado createState() => _MinhaPaginaInicialEstado();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  double _amountOfWater = 250.0;
-  bool _isDrinking = false;
-  late AssetsAudioPlayer _audioPlayer;
-  String _soundPath = 'assets/notificacao.mp3';
-  List<WaterConsumptionEntry> waterConsumptionHistory = [];
-  List<ScheduledTime> scheduledTimes = [
-    ScheduledTime(TimeOfDay(hour: 8, minute: 0), true),
-    ScheduledTime(TimeOfDay(hour: 12, minute: 0), true),
-    ScheduledTime(TimeOfDay(hour: 16, minute: 0), true),
-    ScheduledTime(TimeOfDay(hour: 20, minute: 0), true),
+class _MinhaPaginaInicialEstado extends State<MinhaPaginaInicial> {
+  double _quantidadeDeAgua = 250.0;
+  bool _estaBebendo = false;
+  late AssetsAudioPlayer _reprodutorAudio;
+  String _caminhoSom = 'assets/notificacao.mp3';
+  List<EntradaConsumoAgua> historicoConsumoAgua = [];
+  List<HorarioAgendado> horariosAgendados = [
+    HorarioAgendado(TimeOfDay(hour: 8, minute: 0), true),
+    HorarioAgendado(TimeOfDay(hour: 12, minute: 0), true),
+    HorarioAgendado(TimeOfDay(hour: 16, minute: 0), true),
+    HorarioAgendado(TimeOfDay(hour: 20, minute: 0), true),
   ];
 
   @override
   void initState() {
     super.initState();
-    _loadWaterConsumptionHistory();
-    _audioPlayer = AssetsAudioPlayer();
+    _carregarHistoricoConsumoAgua();
+    _reprodutorAudio = AssetsAudioPlayer();
   }
 
-  Future<void> _loadWaterConsumptionHistory() async {
+  Future<void> _carregarHistoricoConsumoAgua() async {
     final prefs = await SharedPreferences.getInstance();
-    final historyJson = prefs.getStringList('waterConsumptionHistory') ?? [];
+    final historicoJson = prefs.getStringList('historicoConsumoAgua') ?? [];
 
     setState(() {
-      waterConsumptionHistory =
-          historyJson.map((e) => WaterConsumptionEntry.fromJson(jsonDecode(e))).toList();
+      historicoConsumoAgua =
+          historicoJson.map((e) => EntradaConsumoAgua.fromJson(jsonDecode(e))).toList();
     });
   }
 
@@ -102,7 +102,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(60.0),
-        child: CustomAppBar(),
+        child: MinhaAppBar(),
       ),
       body: Center(
         child: Column(
@@ -114,26 +114,26 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             SizedBox(height: 20),
             Text(
-              'Quantidade de Água: ${_amountOfWater.toStringAsFixed(0)} ml',
+              'Quantidade de Água: ${_quantidadeDeAgua.toStringAsFixed(0)} ml',
               style: TextStyle(fontSize: 16),
             ),
             Container(
               width: 300,
               child: Slider(
-                value: _amountOfWater,
+                value: _quantidadeDeAgua,
                 min: 100.0,
                 max: 1000.0,
                 onChanged: (value) {
                   setState(() {
-                    _amountOfWater = value;
+                    _quantidadeDeAgua = value;
                   });
                 },
               ),
             ),
             SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _toggleReminder,
-              child: Text(_isDrinking ? 'Parar lembrete' : 'Começar Lembrete'),
+              onPressed: _alternarLembrete,
+              child: Text(_estaBebendo ? 'Parar lembrete' : 'Começar Lembrete'),
             ),
             SizedBox(height: 20),
             ElevatedButton(
@@ -141,7 +141,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => HistoryPage(waterConsumptionHistory),
+                    builder: (context) => MinhaPaginaHistorico(historicoConsumoAgua),
                   ),
                 );
               },
@@ -150,7 +150,7 @@ class _MyHomePageState extends State<MyHomePage> {
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                _editSchedule(context);
+                _editarCronograma(context);
               },
               child: Text('Cronograma'),
             ),
@@ -160,58 +160,58 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Future<void> _recordWaterConsumption(double amount) async {
-    final entry = WaterConsumptionEntry(DateTime.now(), amount);
+  Future<void> _gravarConsumoAgua(double quantidade) async {
+    final entrada = EntradaConsumoAgua(DateTime.now(), quantidade);
     setState(() {
-      waterConsumptionHistory.add(entry);
+      historicoConsumoAgua.add(entrada);
     });
 
     final prefs = await SharedPreferences.getInstance();
-    final historyJson = waterConsumptionHistory.map((e) => jsonEncode(e)).toList();
-    await prefs.setStringList('waterConsumptionHistory', historyJson);
+    final historicoJson = historicoConsumoAgua.map((e) => jsonEncode(e)).toList();
+    await prefs.setStringList('historicoConsumoAgua', historicoJson);
   }
 
-  void _toggleReminder() {
-    if (_isDrinking) {
+  void _alternarLembrete() {
+    if (_estaBebendo) {
       setState(() {
-        _isDrinking = false;
+        _estaBebendo = false;
       });
-      _timer?.cancel();
+      _temporizador?.cancel();
     } else {
       setState(() {
-        _isDrinking = true;
+        _estaBebendo = true;
       });
-      _startReminder();
+      _iniciarLembrete();
     }
   }
 
-  void _startReminder() {
-    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
-      DateTime now = DateTime.now();
+  void _iniciarLembrete() {
+    _temporizador = Timer.periodic(Duration(seconds: 1), (temporizador) {
+      DateTime agora = DateTime.now();
 
-      for (var scheduledTime in scheduledTimes) {
-        DateTime selectedDateTime = DateTime(
-          now.year,
-          now.month,
-          now.day,
-          scheduledTime.time.hour,
-          scheduledTime.time.minute,
+      for (var horarioAgendado in horariosAgendados) {
+        DateTime horarioSelecionado = DateTime(
+          agora.year,
+          agora.month,
+          agora.day,
+          horarioAgendado.horario.hour,
+          horarioAgendado.horario.minute,
         );
 
-        if (now.isAfter(selectedDateTime) && scheduledTime.isEnabled) {
-          _showReminder();
-          _playNotificationSound();
-          _recordWaterConsumption(_amountOfWater);
-          timer.cancel();
+        if (agora.isAfter(horarioSelecionado) && horarioAgendado.estaAtivo) {
+          _mostrarLembrete();
+          _reproduzirSomNotificacao();
+          _gravarConsumoAgua(_quantidadeDeAgua);
+          temporizador.cancel();
           setState(() {
-            _isDrinking = false;
+            _estaBebendo = false;
           });
         }
       }
     });
   }
 
-  void _showReminder() {
+  void _mostrarLembrete() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -231,37 +231,37 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void _playNotificationSound() {
-    _audioPlayer.open(Audio(_soundPath));
-    _audioPlayer.play();
+  void _reproduzirSomNotificacao() {
+    _reprodutorAudio.open(Audio(_caminhoSom));
+    _reprodutorAudio.play();
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
-    _audioPlayer.dispose();
+    _temporizador?.cancel();
+    _reprodutorAudio.dispose();
     super.dispose();
   }
 
-  Timer? _timer;
+  Timer? _temporizador;
 
-  void _editSchedule(BuildContext context) async {
-    final result = await Navigator.push(
+  void _editarCronograma(BuildContext context) async {
+    final resultado = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SchedulePage(scheduledTimes),
+        builder: (context) => MinhaPaginaCronograma(horariosAgendados),
       ),
     );
 
-    if (result != null && result is List<ScheduledTime>) {
+    if (resultado != null && resultado is List<HorarioAgendado>) {
       setState(() {
-        scheduledTimes = result;
+        horariosAgendados = resultado;
       });
     }
   }
 }
 
-class CustomAppBar extends StatelessWidget {
+class MinhaAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -278,10 +278,10 @@ class CustomAppBar extends StatelessWidget {
   }
 }
 
-class HistoryPage extends StatelessWidget {
-  final List<WaterConsumptionEntry> waterConsumptionHistory;
+class MinhaPaginaHistorico extends StatelessWidget {
+  final List<EntradaConsumoAgua> historicoConsumoAgua;
 
-  HistoryPage(this.waterConsumptionHistory);
+  MinhaPaginaHistorico(this.historicoConsumoAgua);
 
   @override
   Widget build(BuildContext context) {
@@ -290,12 +290,12 @@ class HistoryPage extends StatelessWidget {
         title: Text('Histórico de Consumo'),
       ),
       body: ListView.builder(
-        itemCount: waterConsumptionHistory.length,
+        itemCount: historicoConsumoAgua.length,
         itemBuilder: (context, index) {
-          final entry = waterConsumptionHistory[index];
+          final entrada = historicoConsumoAgua[index];
           return ListTile(
-            title: Text('Data: ${entry.dateTime.toString()}'),
-            subtitle: Text('Quantidade: ${entry.amount.toStringAsFixed(0)} ml'),
+            title: Text('Data: ${entrada.dataHora.toString()}'),
+            subtitle: Text('Quantidade: ${entrada.quantidade.toStringAsFixed(0)} ml'),
           );
         },
       ),
@@ -303,16 +303,16 @@ class HistoryPage extends StatelessWidget {
   }
 }
 
-class SchedulePage extends StatefulWidget {
-  final List<ScheduledTime> scheduledTimes;
+class MinhaPaginaCronograma extends StatefulWidget {
+  final List<HorarioAgendado> horariosAgendados;
 
-  SchedulePage(this.scheduledTimes);
+  MinhaPaginaCronograma(this.horariosAgendados);
 
   @override
-  _SchedulePageState createState() => _SchedulePageState();
+  _MinhaPaginaCronogramaEstado createState() => _MinhaPaginaCronogramaEstado();
 }
 
-class _SchedulePageState extends State<SchedulePage> {
+class _MinhaPaginaCronogramaEstado extends State<MinhaPaginaCronograma> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -320,19 +320,19 @@ class _SchedulePageState extends State<SchedulePage> {
         title: Text('Cronograma'),
       ),
       body: ListView.builder(
-        itemCount: widget.scheduledTimes.length,
+        itemCount: widget.horariosAgendados.length,
         itemBuilder: (context, index) {
-          final scheduledTime = widget.scheduledTimes[index];
+          final horarioAgendado = widget.horariosAgendados[index];
           return ListTile(
             title: Text(
-              'Horário: ${scheduledTime.time.format(context)}',
+              'Horário: ${horarioAgendado.horario.format(context)}',
               style: TextStyle(fontSize: 16),
             ),
             trailing: Switch(
-              value: scheduledTime.isEnabled,
+              value: horarioAgendado.estaAtivo,
               onChanged: (value) {
                 setState(() {
-                  widget.scheduledTimes[index].isEnabled = value;
+                  widget.horariosAgendados[index].estaAtivo = value;
                 });
               },
             ),
@@ -341,16 +341,16 @@ class _SchedulePageState extends State<SchedulePage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          final result = await Navigator.push(
+          final resultado = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => AddSchedulePage(),
+              builder: (context) => MinhaPaginaAdicionarCronograma(),
             ),
           );
 
-          if (result != null && result is ScheduledTime) {
+          if (resultado != null && resultado is HorarioAgendado) {
             setState(() {
-              widget.scheduledTimes.add(result);
+              widget.horariosAgendados.add(resultado);
             });
           }
         },
@@ -360,18 +360,18 @@ class _SchedulePageState extends State<SchedulePage> {
   }
 }
 
-class AddSchedulePage extends StatefulWidget {
+class MinhaPaginaAdicionarCronograma extends StatefulWidget {
   @override
-  _AddSchedulePageState createState() => _AddSchedulePageState();
+  _MinhaPaginaAdicionarCronogramaEstado createState() => _MinhaPaginaAdicionarCronogramaEstado();
 }
 
-class _AddSchedulePageState extends State<AddSchedulePage> {
-  late TimeOfDay _selectedTime;
+class _MinhaPaginaAdicionarCronogramaEstado extends State<MinhaPaginaAdicionarCronograma> {
+  late TimeOfDay _horarioSelecionado;
 
   @override
   void initState() {
     super.initState();
-    _selectedTime = TimeOfDay.now();
+    _horarioSelecionado = TimeOfDay.now();
   }
 
   @override
@@ -383,7 +383,7 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.start, // Ajuste aqui para 'start'
+          mainAxisAlignment: MainAxisAlignment.start,
           children: <Widget>[
             SizedBox(height: 20),
             Text(
@@ -393,25 +393,25 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: () async {
-                final pickedTime = await showTimePicker(
+                final horarioEscolhido = await showTimePicker(
                   context: context,
-                  initialTime: _selectedTime,
+                  initialTime: _horarioSelecionado,
                 );
 
-                if (pickedTime != null) {
+                if (horarioEscolhido != null) {
                   setState(() {
-                    _selectedTime = pickedTime;
+                    _horarioSelecionado = horarioEscolhido;
                   });
                 }
               },
-              child: Text('Horário: ${_selectedTime.format(context)}'),
+              child: Text('Horário: ${_horarioSelecionado.format(context)}'),
             ),
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(
                   context,
-                  ScheduledTime(_selectedTime, true),
+                  HorarioAgendado(_horarioSelecionado, true),
                 );
               },
               child: Text('Adicionar'),
