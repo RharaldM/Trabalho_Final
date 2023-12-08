@@ -115,10 +115,6 @@ class _MinhaPaginaInicialEstado extends State<MinhaPaginaInicial> {
   String _caminhoSom = 'assets/notificacao.mp3';
   List<EntradaConsumoAgua> historicoConsumoAgua = [];
   List<HorarioAgendado> horariosAgendados = [
-    HorarioAgendado(TimeOfDay(hour: 8, minute: 0), true),
-    HorarioAgendado(TimeOfDay(hour: 12, minute: 0), true),
-    HorarioAgendado(TimeOfDay(hour: 16, minute: 0), true),
-    HorarioAgendado(TimeOfDay(hour: 20, minute: 0), true),
   ];
 
   @override
@@ -195,17 +191,13 @@ Widget build(BuildContext context) {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                Text(
-                  'Beber Água a cada 2 horas',
-                  style: TextStyle(fontSize: 18),
-                ),
                 SizedBox(height: 20),
                 Text(
                   'Quantidade de Água: ${_quantidadeDeAgua.toStringAsFixed(0)} ml',
                   style: TextStyle(fontSize: 16),
                 ),
                 Container(
-                  width: 300,
+                  width: 400,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(10.0),
