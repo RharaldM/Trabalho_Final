@@ -221,7 +221,7 @@ Widget build(BuildContext context) {
                   child: Slider(
                     value: _quantidadeDeAgua,
                     min: 100.0,
-                    max: 1000.0,
+                    max: 7000.0,
                     onChanged: (value) {
                       setState(() {
                         _quantidadeDeAgua = value;
